@@ -45,4 +45,4 @@ Technologies Used--
 Backend: FastAPI (Python)
 Frontend: HTML, CSS, JavaScript
 Database: MySQL
-Tools: Uvicorn, Pydantic, MySQL Connector, Virtual Environment (venv)
+Tools: Uvicorn, Pydantic, MySQL Connector, Virtual Environment (venv).
