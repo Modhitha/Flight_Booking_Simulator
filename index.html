@@ -1,20 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flight Booking System</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Flight Booking Simulator</title>
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-<h1>Flight Booking Simulator</h1>
-<div class="search">
-  <input type="text" id="origin" placeholder="Origin">
-  <input type="text" id="destination" placeholder="Destination">
-  <input type="date" id="date">
-  <button onclick="searchFlights()">Search</button>
-</div>
-<div id="flights"></div>
-<script src="script.js"></script>
+  <div class="container">
+    <h1>✈️ Flight Booking Simulator</h1>
+
+    <section>
+      <h2>Search Flights</h2>
+      <div class="row">
+        <input id="origin" placeholder="Origin (e.g., Mumbai)" />
+        <input id="destination" placeholder="Destination (e.g., Delhi)" />
+        <input id="date" type="date" />
+        <select id="sort_by">
+          <option value="">Sort By</option>
+          <option value="price">Price</option>
+          <option value="duration">Duration</option>
+        </select>
+        <button id="search-btn">Search</button>
+      </div>
+      <div id="flights"></div>
+    </section>
+
+    <section id="booking-section">
+      <h2>Multi-step Booking</h2>
+      <div id="booking-step" class="card">Select a flight from search results and click <b>Book</b></div>
+      <div id="receipt-area"></div>
+    </section>
+
+    <section>
+      <h2>Lookup / Cancel</h2>
+      <div class="row">
+        <input id="lookup-pnr" placeholder="PNR" />
+        <button id="lookup-btn">Lookup</button>
+        <input id="cancel-pnr" placeholder="PNR to cancel" />
+        <button id="cancel-btn">Cancel</button>
+      </div>
+      <pre id="lookup-result"></pre>
+    </section>
+  </div>
+
+  <div id="passenger-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Passenger Info</h3>
+      <input id="p-name" placeholder="Full name" />
+      <input id="p-phone" placeholder="Contact number" />
+      <input id="p-email" placeholder="Email" />
+      <input id="p-city" placeholder="City" />
+      <button id="pay-btn">Simulate Payment & Confirm</button>
+      <button id="cancel-pass">Cancel</button>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
 </body>
 </html>
