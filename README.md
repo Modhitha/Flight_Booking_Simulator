@@ -31,7 +31,6 @@ passengers – Stores passenger information such as full name, contact number, e
 bookings – Booking records including flight ID, passenger ID, seat number, PNR, status, and price.
 payments – Payment records linked to bookings, including amount, payment status, and payment date.
 
-Remaining Tasks to Complete the Project:
+
 Fully integrate the frontend (HTML, CSS, JS) with backend APIs for interactive booking.
-can Add seat class options (Economy, Business, First Class) in booking flow.
-can Enhance booking history retrieval with filtering by passenger, date, or flight.
+
