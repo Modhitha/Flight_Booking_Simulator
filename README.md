@@ -1,36 +1,48 @@
-Project : Flight Booking Simulator with Dynamic Pricing
+Project: Flight Booking Simulator with Dynamic Pricing
+Overview:
+This project simulates a real-world flight booking system that integrates dynamic pricing, seat management, and a complete booking workflow. The system provides RESTful APIs built using FastAPI, connected to a MySQL database, and an interactive frontend developed with HTML, CSS, and JavaScript.
+Features Implemented
 
-Steps Completed (Up to Now):
-Built REST APIs using FastAPI for:
-Retrieving all flights
-Searching flights by origin, destination, and optional date
-Implemented input validation and sorting by price or duration.
-Designed a dynamic pricing engine considering:
+Backend (FastAPI) --
+Flight Retrieval APIs:
+Retrieve all flights.
+Search flights by origin, destination, and optional date.
+Sort search results by price or duration.
+Dynamic Pricing Engine:
+Adjusts fares based on:
 Remaining seat percentage
-Time until departure
+Time left until departure
 Simulated demand level
-Base fare & pricing tiers
-Integrated dynamic pricing into flight search API.
-Implemented background process to simulate seat availability changes over time.
-Developed booking workflow:
+Base fare and pricing tiers
+Seat Availability Simulation:
+Background process dynamically updates seat availability to mimic real-time bookings and cancellations.
+Booking Workflow:
 Flight & seat selection
-Passenger info registration
-Simulated payment (success/fail)
-PNR generation and booking storage
+Passenger registration
+Simulated payment (success/failure)
+PNR generation
 Concurrency-safe seat reservation
-Implemented booking cancellation and history retrieval by PNR.
+Booking storage and retrieval
+Booking Management:
+Cancel bookings
+Retrieve booking history using PNR
 
-Technologies Used:
+Frontend (HTML, CSS, JavaScript)--
+Developed an interactive user interface for:
+Searching and displaying flights dynamically using backend APIs.
+Selecting flights and entering passenger details.
+Simulating payments and viewing booking confirmations.
+Checking booking history and cancellation.
+Designed a clean, responsive layout using CSS Flexbox/Grid and JavaScript for asynchronous API calls (fetch()).
+
+Database Design (MySQL)--
+flights – Stores flight details: flight number, airline, origin, destination, departure/arrival times, total seats, available seats, and base fare.
+passengers – Contains passenger information: full name, contact number, email, and city.
+bookings – Tracks bookings with fields for flight ID, passenger ID, seat number, PNR, status, and final ticket price.
+payments – Records payment details linked to each booking, including amount, status, and payment date.
+
+Technologies Used--
 Backend: FastAPI (Python)
-Database: MySQL
 Frontend: HTML, CSS, JavaScript
-
-Database Schema:
-flights – Flight details including departure, arrival, total seats, available seats, base fare, and airline.
-passengers – Stores passenger information such as full name, contact number, email, and city.
-bookings – Booking records including flight ID, passenger ID, seat number, PNR, status, and price.
-payments – Payment records linked to bookings, including amount, payment status, and payment date.
-
-
-Fully integrate the frontend (HTML, CSS, JS) with backend APIs for interactive booking.
-
+Database: MySQL
+Tools: Uvicorn, Pydantic, MySQL Connector, Virtual Environment (venv)
