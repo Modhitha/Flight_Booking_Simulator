@@ -1,10 +1,10 @@
 #Milestone-2,3
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, EmailStr, conint, constr
+from pydantic import BaseModel, EmailStr, constr
 from datetime import datetime, timedelta
-import random, threading, os, mysql.connector, json, uuid, time
+import random, threading, os, mysql.connector, time
 
 app = FastAPI(title="Flight Booking System")
 app.mount("/static", StaticFiles(directory=os.path.dirname(__file__)), name="static")
@@ -18,7 +18,7 @@ def get_db_connection():
         host="localhost",
         user="root",
         password="Root@123",
-        database="flight_booking_system",
+        database="flight_booking",
         autocommit=False
     )
 
@@ -33,9 +33,9 @@ class PassengerInfo(BaseModel):
 class BookingRequest(BaseModel):
     flight_id: int
     passenger: PassengerInfo
-    seat_no: constr(min_length=1)
 
 def calculate_dynamic_price(base_fare, seats_available, total_seats, departure_time):
+    base_fare = float(base_fare)
     try:
         remaining_percentage = seats_available / total_seats
     except Exception:
@@ -58,8 +58,7 @@ def calculate_dynamic_price(base_fare, seats_available, total_seats, departure_t
         time_factor = 1.2
     else:
         time_factor = 1.0
-    tier_factor = 1.0
-    final = base_fare * seat_factor * time_factor * demand * tier_factor
+    final = base_fare * seat_factor * time_factor * demand
     return round(final, 2)
 
 @app.get("/flights")
@@ -70,11 +69,7 @@ def get_all_flights(sort_by: str = Query(None, regex="^(price|duration)$")):
     flights = cursor.fetchall()
     for f in flights:
         f["dynamic_price"] = calculate_dynamic_price(f["base_fare"], f["seats_available"], f["total_seats"], f["departure"])
-        try:
-            dur = (f["arrival"] - f["departure"]).total_seconds()
-        except Exception:
-            dur = 0
-        f["duration_seconds"] = int(dur)
+        f["duration_seconds"] = int((f["arrival"] - f["departure"]).total_seconds())
     if sort_by == "price":
         flights.sort(key=lambda x: x["dynamic_price"])
     elif sort_by == "duration":
@@ -84,14 +79,15 @@ def get_all_flights(sort_by: str = Query(None, regex="^(price|duration)$")):
     return {"flights": flights}
 
 @app.get("/search")
-def search_flights(origin: str = Query(...), destination: str = Query(...), date: str = Query(...), sort_by: str = Query(None, regex="^(price|duration)$")):
+def search_flights(origin: str, destination: str, date: str, sort_by: str = Query(None, regex="^(price|duration)$")):
     try:
         datetime.strptime(date, "%Y-%m-%d")
     except Exception:
         raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM flights WHERE origin=%s AND destination=%s AND DATE(departure)=%s", (origin, destination, date))
+    cursor.execute("SELECT * FROM flights WHERE origin=%s AND destination=%s AND DATE(departure)=%s",
+                   (origin, destination, date))
     results = cursor.fetchall()
     if not results:
         cursor.close()
@@ -108,24 +104,6 @@ def search_flights(origin: str = Query(...), destination: str = Query(...), date
     conn.close()
     return {"search_results": results}
 
-@app.get("/external/{airline}/schedules")
-def external_schedules(airline: str, origin: str = Query(...), destination: str = Query(...), days: int = Query(3, ge=1, le=30)):
-    schedules = []
-    for d in range(days):
-        dep = datetime.now().replace(hour=random.randint(5, 22), minute=random.choice([0, 15, 30, 45]))
-        duration_mins = random.choice([60, 90, 120, 150, 180])
-        arr = dep + timedelta(minutes=duration_mins)
-        schedules.append({
-            "airline": airline,
-            "flight_no": airline[:2].upper() + str(random.randint(100, 999)),
-            "origin": origin,
-            "destination": destination,
-            "departure": dep.isoformat(),
-            "arrival": arr.isoformat(),
-            "duration_minutes": duration_mins
-        })
-    return {"schedules": schedules}
-
 @app.post("/book")
 def book_flight(booking: BookingRequest):
     conn = get_db_connection()
@@ -139,9 +117,13 @@ def book_flight(booking: BookingRequest):
         if flight["seats_available"] <= 0:
             conn.rollback()
             raise HTTPException(status_code=400, detail="No seats available")
-        cursor.execute("INSERT INTO passengers (full_name, contact_number, email, city) VALUES (%s,%s,%s,%s)",
-                       (booking.passenger.full_name, booking.passenger.contact_number, booking.passenger.email, booking.passenger.city))
+
+        cursor.execute(
+            "INSERT INTO passengers (full_name, contact_number, email, city) VALUES (%s,%s,%s,%s)",
+            (booking.passenger.full_name, booking.passenger.contact_number, booking.passenger.email, booking.passenger.city)
+        )
         passenger_id = cursor.lastrowid
+
         pnr = None
         for _ in range(5):
             candidate = "PNR" + str(random.randint(100000, 999999))
@@ -152,18 +134,20 @@ def book_flight(booking: BookingRequest):
         if not pnr:
             conn.rollback()
             raise HTTPException(status_code=500, detail="Failed to generate unique PNR")
+
         price = calculate_dynamic_price(flight["base_fare"], flight["seats_available"], flight["total_seats"], flight["departure"])
-        payment_status = random.choices(["SUCCESS", "FAILED"], weights=[0.9, 0.1])[0]
-        if payment_status == "FAILED":
-            conn.rollback()
-            cursor.close()
-            conn.close()
-            return JSONResponse(status_code=402, content={"detail": "Payment failed"})
-        cursor.execute("INSERT INTO bookings (flight_id, passenger_id, seat_no, status, price, pnr) VALUES (%s,%s,%s,%s,%s,%s)",
-                       (booking.flight_id, passenger_id, booking.seat_no, "CONFIRMED", price, pnr))
+        payment_status = "SUCCESS"  # ✅ always success
+
+        cursor.execute(
+            "INSERT INTO bookings (flight_id, passenger_id, seat_no, status, price, pnr) VALUES (%s,%s,%s,%s,%s,%s)",
+            (booking.flight_id, passenger_id, "any", "CONFIRMED", price, pnr)
+        )
         booking_id = cursor.lastrowid
-        cursor.execute("INSERT INTO payments (booking_id, amount, payment_status, payment_date) VALUES (%s,%s,%s,%s)",
-                       (booking_id, price, payment_status, datetime.now()))
+
+        cursor.execute(
+            "INSERT INTO payments (booking_id, amount, payment_status, payment_date) VALUES (%s,%s,%s,%s)",
+            (booking_id, price, payment_status, datetime.now())
+        )
         cursor.execute("UPDATE flights SET seats_available=seats_available-1 WHERE flight_id=%s", (booking.flight_id,))
         conn.commit()
         cursor.close()
@@ -187,8 +171,8 @@ def get_booking(pnr: str):
         WHERE b.pnr=%s
     """, (pnr,))
     booking = cursor.fetchone()
-    cursor.execute("SELECT * FROM payments WHERE booking_id=%s", (booking["booking_id"],) if booking and "booking_id" in booking else (None,))
-    payment = cursor.fetchone() if booking else None
+    cursor.execute("SELECT * FROM payments WHERE booking_id=%s", (booking["booking_id"],))
+    payment = cursor.fetchone()
     cursor.close()
     conn.close()
     if not booking:
@@ -221,38 +205,41 @@ def cancel_booking(pnr: str):
 
 @app.get("/receipt/{pnr}")
 def receipt(pnr: str):
-    resp = get_booking(pnr)
-    booking = resp.get("booking")
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    receipt = {
-        "PNR": booking.get("pnr"),
-        "passenger": {"name": booking.get("full_name"), "email": booking.get("email"), "phone": booking.get("contact_number")},
-        "flight_no": booking.get("flight_no"),
-        "origin": booking.get("origin"),
-        "destination": booking.get("destination"),
-        "departure": booking.get("departure").isoformat() if isinstance(booking.get("departure"), datetime) else booking.get("departure"),
-        "arrival": booking.get("arrival").isoformat() if isinstance(booking.get("arrival"), datetime) else booking.get("arrival"),
-        "price": booking.get("price"),
-        "status": booking.get("status")
-    }
-    return JSONResponse(content=receipt)
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT b.*, f.flight_no, f.origin, f.destination, f.departure, f.arrival,
+                   p.full_name, p.email, p.contact_number
+            FROM bookings b
+            JOIN flights f ON b.flight_id = f.flight_id
+            JOIN passengers p ON b.passenger_id = p.passenger_id
+            WHERE b.pnr = %s
+        """, (pnr,))
+        booking = cursor.fetchone()
+        cursor.close()
+        conn.close()
 
-def simulate_demand():
-    while True:
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT flight_id, seats_available FROM flights")
-            flights = cursor.fetchall()
-            for f in flights:
-                if random.random() < 0.25 and f["seats_available"] > 0:
-                    cursor.execute("UPDATE flights SET seats_available=seats_available-1 WHERE flight_id=%s", (f["flight_id"],))
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except Exception:
-            pass
-        time.sleep(60)
+        if not booking:
+            return JSONResponse(status_code=404, content={"detail": f"PNR {pnr} not found"})
 
-#threading.Thread(target=simulate_demand, daemon=True).start()
+        receipt = {
+            "PNR": booking.get("pnr"),
+            "passenger": {
+                "name": booking.get("full_name"),
+                "email": booking.get("email"),
+                "phone": booking.get("contact_number")
+            },
+            "flight_no": booking.get("flight_no"),
+            "origin": booking.get("origin"),
+            "destination": booking.get("destination"),
+            "departure": booking.get("departure").isoformat() if isinstance(booking.get("departure"), datetime) else booking.get("departure"),
+            "arrival": booking.get("arrival").isoformat() if isinstance(booking.get("arrival"), datetime) else booking.get("arrival"),
+            "price": float(booking.get("price")),
+            "status": booking.get("status")
+        }
+
+        return JSONResponse(content=receipt)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": f"Error fetching receipt: {str(e)}"})
+
